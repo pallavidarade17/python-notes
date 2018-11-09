@@ -1,0 +1,29 @@
+run.py
+
+from app import app
+
+if __name__ == "__main__":
+    app.run(host='localhost', port='5001', threaded=True)
+    
+
+------------------------------------------------------------------------------------------------------------------------
+__init__.py
+
+from flask import Flask
+
+# Import a module/component using its blueprint handler variables
+
+from controllers.StoreController import StoreController
+
+# Define the WSGI application object
+app = Flask(__name__)
+
+# Configurations
+app.config.from_object('config')
+
+# Register blueprint(s)
+
+app.register_blueprint(StoreController, url_prefix="/api/store_py")
+
+---------------------------------------------------------------------------------------------------------------------------
+config.py  ---- for DB url and other properties which is imported in init.py
