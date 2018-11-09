@@ -1,1 +1,42 @@
 
+from app.dao.MarsDAO import MarsDAO
+from config import config
+from datetime import datetime, time
+from app.dto.PageDTO import PageDTO
+import requests
+import os
+import psycopg2
+import pandas as pd
+
+class MarsService:
+    def __init__(self):
+        print('Init MarsService')
+
+    def getBusinessList(self):
+        print('in getBusinessList Service')
+        marsDAO = MarsDAO()
+        return marsDAO.getBusinessList()
+
+    def selectQuarterNamesByCurrency(self,selectedCurrency):
+        try:
+            print('In Quarterselection Service')
+            marsDAO=MarsDAO()
+            return marsDAO.getQuarterByCurrency(selectedCurrency)
+        except Exception, args:
+            print args
+
+    def getMarsData(self,pageNo, pageSize, colNames, filters,currency):
+        print('In getMarData Service')
+        marsDAO=MarsDAO()
+        df = marsDAO.fetchMarsData(pageNo, pageSize, colNames, filters,currency)
+        totalRecCount = marsDAO.getMARSDataCount(filters,currency)
+        #print totalRecCount
+
+        if (totalRecCount==0 or totalRecCount is None):
+            return ""
+        else:
+        # PageDTO object
+            pageDTO = PageDTO(totalRecCount, pageNo, pageSize, df)
+            print 'return PageDTO object..'
+
+            return pageDTO.__dict__
