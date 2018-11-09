@@ -1,0 +1,41 @@
+create folder app ->controller->StoreController.py and __init__.py file should be present in every pyhton package 
+
+StoreController.py
+
+import json
+import socket
+from flask import Blueprint, jsonify, request, make_response, Response, abort, current_app
+from urlparse import urlparse
+from datetime import datetime, timedelta
+from functools import wraps
+from decimal import Decimal
+from app.dao.StoreDAO import StoreDAO
+
+StoreController = Blueprint("AllController", __name__)
+
+@StoreController.route("/health", methods=['GET'])
+def healthCheck():
+    try:
+        return 'All Controller is up..'
+    except Exception, args:
+        print args
+        return 'All Controller is down..'
+
+
+@StoreController.route("/storetabs", methods=['GET'])
+def getStoretabs():
+    print 'In getStoretabs'
+    output = []
+    try:
+        storeDAO = StoreDAO()
+        output = storeDAO.getStoretabs()
+        print output
+        jsonData = json.dumps({'appsdata': output}, default=defaultencode)
+        output = Response(jsonData, status=200, mimetype='application/json')
+    except Exception, args:
+        print args
+        response = {"error": str(args)}
+        output = make_response(jsonify(response), 500)
+    finally:
+        print 'Returning response..'
+        return output
