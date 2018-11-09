@@ -40,3 +40,50 @@ class MarsService:
             print 'return PageDTO object..'
 
             return pageDTO.__dict__
+            
+            
+   ---------------------------------------------------------------------------------------------------------------------         
+            
+            
+            
+            
+ PAGE DTO --the logic to display data in pagination
+     
+import json
+from collections import OrderedDict
+from datetime import date, datetime
+from decimal import Decimal
+from app.util.JsonUtils import DateTimeEncoder, DateTimeDecoder
+import pandas as pd
+
+class PageDTO:
+    def __init__(self, totalRecCount, pageNo, pageSize, df):
+        self.totalRecCount = totalRecCount
+        self.pageNo = pageNo
+        self.pageSize = pageSize
+        # df1 = pd.to_datetime(df, format='%Y%m%d', errors='coerce')
+        self.results = json.loads(df.to_json(orient="records", date_format='iso'), object_pairs_hook=OrderedDict)
+
+class fakefloat(float):
+    def __init__(self, value):
+        self._value = value
+
+    def __repr__(self):
+        return str(self._value)
+
+def defaultencode(o):
+    if isinstance(o, Decimal):
+        # Subclass float with custom repr?
+        return fakefloat(o)
+    if isinstance(o, datetime):
+        return o.isoformat()
+    if isinstance(o, date):
+        return o.isoformat()
+
+    # @property
+    # def results(self):
+    #     return self.results
+    #
+    # @results.setter
+    # def results(self, df):
+    #     self.results = json.loads(df.to_json(orient="records"), object_pairs_hook=OrderedDict)
