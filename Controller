@@ -39,3 +39,57 @@ def getStoretabs():
     finally:
         print 'Returning response..'
         return output
+
+
+
+
+Another example for Controller which calls service
+
+import os
+
+from flask import Blueprint, jsonify, request, make_response, Response, send_from_directory
+import json
+from app.util.ResponseData import gzipped
+from app.services.MarsService import MarsService
+from config import config
+
+MarsController = Blueprint("MarsController", __name__)
+
+@MarsController.route("/", methods=['GET'])
+def healthcheck():
+    return "Working"
+
+
+@MarsController.route("/getBusiness", methods=['GET'])
+def getBusinessList():
+    output = []
+    try:
+        marsservice = MarsService()
+        result = marsservice.getBusinessList()
+        output = Response(json.dumps(result), status=200, mimetype='application/json')
+    except Exception, args:
+        print args
+        response = {"error": str(args)}
+        output = make_response(jsonify(response), 500)
+    finally:
+        # Return response
+        return output
+
+
+@MarsController.route("/quarterData", methods=['POST'])
+# @gzipped
+def  fill_Quarter_data():
+    output = []
+    try:
+        inputs = request.json
+        selectedCurrency=inputs['selected_currency']
+        marsservice =MarsService()
+        result= marsservice.selectQuarterNamesByCurrency(selectedCurrency)
+        output = Response(json.dumps(result), status=200, mimetype='application/json')
+    except Exception, args:
+        print args
+        response = {"error": str(args)}
+        output = make_response(jsonify(response), 500)
+    finally:
+        # Return response
+        return output
