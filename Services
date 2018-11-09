@@ -1,5 +1,51 @@
 
-from app.dao.MarsDAO import MarsDAO
+PAGE DTO --the logic to display data in pagination ------------- Services is written down
+     
+import json
+from collections import OrderedDict
+from datetime import date, datetime
+from decimal import Decimal
+from app.util.JsonUtils import DateTimeEncoder, DateTimeDecoder
+import pandas as pd
+
+class PageDTO:
+    def __init__(self, totalRecCount, pageNo, pageSize, df):
+        self.totalRecCount = totalRecCount
+        self.pageNo = pageNo
+        self.pageSize = pageSize
+        # df1 = pd.to_datetime(df, format='%Y%m%d', errors='coerce')
+        self.results = json.loads(df.to_json(orient="records", date_format='iso'), object_pairs_hook=OrderedDict)
+
+class fakefloat(float):
+    def __init__(self, value):
+        self._value = value
+
+    def __repr__(self):
+        return str(self._value)
+
+def defaultencode(o):
+    if isinstance(o, Decimal):
+        # Subclass float with custom repr?
+        return fakefloat(o)
+    if isinstance(o, datetime):
+        return o.isoformat()
+    if isinstance(o, date):
+        return o.isoformat()
+
+    # @property
+    # def results(self):
+    #     return self.results
+    #
+    # @results.setter
+    # def results(self, df):
+    #     self.results = json.loads(df.to_json(orient="records"), object_pairs_hook=OrderedDict)
+    
+    
+    
+    
+    ------------------------------------------------------------------------------------------------------------------
+    
+    from app.dao.MarsDAO import MarsDAO
 from config import config
 from datetime import datetime, time
 from app.dto.PageDTO import PageDTO
@@ -40,50 +86,108 @@ class MarsService:
             print 'return PageDTO object..'
 
             return pageDTO.__dict__
-            
-            
-   ---------------------------------------------------------------------------------------------------------------------         
-            
-            
-            
-            
- PAGE DTO --the logic to display data in pagination
-     
-import json
-from collections import OrderedDict
-from datetime import date, datetime
-from decimal import Decimal
-from app.util.JsonUtils import DateTimeEncoder, DateTimeDecoder
-import pandas as pd
 
-class PageDTO:
-    def __init__(self, totalRecCount, pageNo, pageSize, df):
-        self.totalRecCount = totalRecCount
-        self.pageNo = pageNo
-        self.pageSize = pageSize
-        # df1 = pd.to_datetime(df, format='%Y%m%d', errors='coerce')
-        self.results = json.loads(df.to_json(orient="records", date_format='iso'), object_pairs_hook=OrderedDict)
 
-class fakefloat(float):
-    def __init__(self, value):
-        self._value = value
+    def exportMARSData(self,sso, colNames, filters,currency):
+        marsDAO = MarsDAO()
+        totalRecCount = marsDAO.getMARSDataCount(filters,currency)
+        print totalRecCount
 
-    def __repr__(self):
-        return str(self._value)
+        if (totalRecCount == 0 or totalRecCount is None):
+            return ""
+        else:
+            if totalRecCount <= config.export_limit:
+                return self.exportAsCSV(colNames, filters,currency)
+            else:
+                return self.createExportRequest(sso, colNames, filters,currency)
 
-def defaultencode(o):
-    if isinstance(o, Decimal):
-        # Subclass float with custom repr?
-        return fakefloat(o)
-    if isinstance(o, datetime):
-        return o.isoformat()
-    if isinstance(o, date):
-        return o.isoformat()
+    def exportAsCSV(self, colNames, filters,currency):
+        output = []
+        try:
+            marsDAO = MarsDAO()
+            df = marsDAO.exportMarsData(colNames, filters,currency)
 
-    # @property
-    # def results(self):
-    #     return self.results
-    #
-    # @results.setter
-    # def results(self, df):
-    #     self.results = json.loads(df.to_json(orient="records"), object_pairs_hook=OrderedDict)
+            filename = 'Mars_data_' + datetime.now().strftime("%Y%m%d_%H%M%S") + '.csv'
+            df.to_csv((config.export_path + '\\' + filename), index=False, encoding='utf-8')
+            print filename
+
+            output = {'status': 'success', 'type': 'file', 'message': 'Data exported in csv', "filename": filename}
+
+        except Exception, args:
+            print 'Exception: ', args.message
+            output = {'status': 'error', 'message': args.message}
+        finally:
+            return output
+
+    def exportHighVolumeAsCSV(self, colNames, filters,currency):
+        marsDAO = MarsDAO()
+        result = marsDAO.exportHighVolumeEmployees(colNames, filters,currency)
+
+        if result['success']:
+            output = {'status': 'success', 'type': 'job', 'filename': result['filename'],
+                      'message': 'Data export request running in background'}
+        else:
+            output = {'status': 'error', 'type': 'job', 'message': result.message}
+
+        return output
+
+
+    def createExportRequest(self, sso, colNames, filters,currency):
+        output = []
+        try:
+            marsDAO = MarsDAO()
+            df = marsDAO.createExportRequest(sso, colNames, filters,currency)
+            output = {'type': 'job','status': 'success', 'message': 'Request is submitted to export data in background. \nAn email notification will be sent once file is uploaded on box.'}
+
+        except Exception, args:
+            print 'Exception: ', args.message
+            output = {'status': 'error', 'message': args.message}
+        finally:
+            return output
+
+    def fetchNewRequest(self):
+        try:
+            marsDAO = MarsDAO()
+            return marsDAO.fetchNewRequest()
+        except Exception, args:
+            print 'Exception: ', args.message
+
+    def changeExportRequestStatus(self, requestID, status):
+        try:
+            marsDAO = MarsDAO()
+            return marsDAO.changeExportRequestStatus(requestID, status)
+        except Exception, args:
+            print 'Exception: ', args.message
+
+    def createBoxRequest(self, sso, filename):
+        payload = {
+            "sso": str(sso),
+            "fileName": filename,
+            "filePath": ''
+        }
+
+        # sso = "503001841"
+        # configpath =(config.export_path+'/'+filename)
+        # configpath= self.convertPath(configpath)
+        # print(configpath)
+        #
+        # url = "http://localhost:5006/boxapi/upload/"
+        #
+        # payload = "{\"sso\":"+sso+",\"fileName\":\""+filename+"\",\"filePath\":\""+configpath+"\"}"
+        # headers = {
+        #     'Content-Type': "application/json",
+        #     'Cache-Control': "no-cache"
+        # }
+        #
+        # response = requests.request("POST", url, data=payload, headers=headers)
+        #
+        # print(response.text)
+
+        res = requests.post(config.CAS_BASE_URL + '/api/box/controller/boxapi/upload/request', json=payload, verify=False)
+        print 'response from server:', res.text
+        dictFromServer = res.json()
+        print dictFromServer
+
+        return 'success'
+
+
